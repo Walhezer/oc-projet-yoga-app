@@ -1,3 +1,4 @@
+import { ReactNode } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Login from './pages/Login';
@@ -8,14 +9,14 @@ import SessionForm from './pages/SessionForm';
 import Profile from './pages/Profile';
 import { authService } from './services/auth.service';
 
-function PrivateRoute({ children }: any) {
+function PrivateRoute({ children }: { children: ReactNode }) {
   const isAuthenticated = authService.isAuthenticated();
   return isAuthenticated ? children : <Navigate to="/login" />;
 }
 
 function App() {
   return (
-    <Router>
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <div className="min-h-screen bg-gray-100">
         <Navbar />
         <Routes>
