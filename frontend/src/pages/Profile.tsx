@@ -1,35 +1,49 @@
+/// <reference types="vite/client" />
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import api from '../services/api';
 import { authService } from '../services/auth.service';
+import { User } from '../types';
 
 function Profile() {
   const navigate = useNavigate();
-  const [userInfo, setUserInfo] = useState<any>(null);
-  const [loading, setLoading] = useState<any>(true);
-  const [error, setError] = useState<any>('');
-  const [promoteLoading, setPromoteLoading] = useState<any>(false);
-  const [promoteError, setPromoteError] = useState<any>('');
+  const [userInfo, setUserInfo] = useState<User | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>('');
+  const [promoteLoading, setPromoteLoading] = useState<boolean>(false);
+  const [promoteError, setPromoteError] = useState<string>('');
+
   const user = authService.getCurrentUser();
   const token = authService.getToken();
-  const isDev = (import.meta as any).env?.DEV === true;
+  const isDev = import.meta.env?.DEV === true;
 
   useEffect(() => {
+    const controller = new AbortController();
+
     if (user) {
-      fetchUserInfo();
+      fetchUserInfo(controller.signal);
     }
+
+    return () => {
+      controller.abort();
+    };
   }, []);
 
-  const fetchUserInfo = async (): Promise<any> => {
+  const fetchUserInfo = async (signal?: AbortSignal): Promise<void> => {
     try {
       setLoading(true);
-      const response = await api.get(`/user/${user.id}`, {
+      const response = await api.get<User>(`/user/${user?.id}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+        signal: signal,
       });
       setUserInfo(response.data);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      if (axios.isCancel(err)) {
+        return;
+      }
       setError('Failed to load user information');
       console.error(err);
     } finally {
@@ -37,30 +51,30 @@ function Profile() {
     }
   };
 
-  const handleDeleteAccount = async (): Promise<any> => {
+  const handleDeleteAccount = async (): Promise<void> => {
     if (!window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
       return;
     }
 
     try {
-      await api.delete(`/user/${user.id}`, {
+      await api.delete(`/user/${user?.id}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
       authService.logout();
       navigate('/login');
-    } catch (err: any) {
+    } catch (err: unknown) {
       alert('Failed to delete account');
       console.error(err);
     }
   };
 
-  const handlePromoteAdmin = async (): Promise<any> => {
+  const handlePromoteAdmin = async (): Promise<void> => {
     try {
       setPromoteError('');
       setPromoteLoading(true);
-      const response = await api.post(
+      const response = await api.post<User>(
         '/user/promote-admin',
         {},
         {
@@ -71,7 +85,7 @@ function Profile() {
       );
       setUserInfo(response.data);
       authService.updateCurrentUser({ admin: response.data.admin });
-    } catch (err: any) {
+    } catch (err: unknown) {
       setPromoteError('Failed to promote to admin');
       console.error(err);
     } finally {
@@ -140,7 +154,7 @@ function Profile() {
                   </span>
                 )}
               </p>
-              {isDev && !userInfo.admin ? (
+              {isDev && !userInfo.admin && (
                 <div className="mt-3">
                   <button
                     onClick={handlePromoteAdmin}
@@ -149,11 +163,11 @@ function Profile() {
                   >
                     {promoteLoading ? 'Promoting...' : 'Promote to Admin (Dev)'}
                   </button>
-                  {promoteError ? (
+                  {promoteError && (
                     <div className="mt-2 text-sm text-red-600">{promoteError}</div>
-                  ) : null}
+                  )}
                 </div>
-              ) : null}
+              )}
             </div>
 
             <div className="border-b pb-4">
@@ -161,11 +175,13 @@ function Profile() {
                 Member Since
               </span>
               <p className="text-lg text-gray-800">
-                {new Date(userInfo.createdAt).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
+                {userInfo.createdAt
+                  ? new Date(userInfo.createdAt).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  })
+                  : 'N/A'}
               </p>
             </div>
           </div>
