@@ -1,27 +1,27 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import axios from 'axios';
 import api from '../services/api';
 import { authService } from '../services/auth.service';
-import { Teacher, Session } from '../types';
+import { Teacher, Session, SessionFormData } from '../types';
 
 function SessionForm() {
   const navigate = useNavigate();
   const { id } = useParams();
   const isEditMode = !!id;
 
-  const [formData, setFormData] = useState<any>({
+  const [formData, setFormData] = useState<SessionFormData>({
     name: '',
     date: '',
     description: '',
-    teacherId: '',
+    teacherId: 0,
   });
-  const [teachers, setTeachers] = useState<any>([]);
-  const [loading, setLoading] = useState<any>(false);
-  const [error, setError] = useState<any>('');
+  const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
   const user = authService.getCurrentUser();
   const token = authService.getToken();
 
-  // Redirect if not admin
   useEffect(() => {
     if (!user || !user.admin) {
       navigate('/sessions');
@@ -29,31 +29,40 @@ function SessionForm() {
   }, [user, navigate]);
 
   useEffect(() => {
-    fetchTeachers();
+    const controller = new AbortController();
+
+    fetchTeachers(controller.signal);
     if (isEditMode) {
-      fetchSession();
+      fetchSession(controller.signal);
     }
+
+    return () => {
+      controller.abort();
+    };
   }, [id]);
 
-  const fetchTeachers = async (): Promise<any> => {
+  const fetchTeachers = async (signal?: AbortSignal): Promise<void> => {
     try {
       const response = await api.get<Teacher[]>('/teacher', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+        signal: signal,
       });
       setTeachers(response.data);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      if (axios.isCancel(err)) return;
       console.error('Failed to fetch teachers', err);
     }
   };
 
-  const fetchSession = async (): Promise<any> => {
+  const fetchSession = async (signal?: AbortSignal): Promise<void> => {
     try {
       const response = await api.get<Session>(`/session/${id}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+        signal: signal,
       });
       const session = response.data;
       setFormData({
@@ -62,22 +71,25 @@ function SessionForm() {
         description: session.description,
         teacherId: session.teacher.id,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
+      if (axios.isCancel(err)) return;
       setError('Failed to load session');
       console.error(err);
     }
   };
 
-  const handleChange = (e: any): any => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+  ): void => {
     const value =
-      e.target.name === 'teacherId' ? parseInt(e.target.value) : e.target.value;
+      e.target.name === 'teacherId' ? parseInt(e.target.value, 10) : e.target.value;
     setFormData({
       ...formData,
       [e.target.name]: value,
     });
   };
 
-  const handleSubmit = async (e: any): Promise<any> => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     setError('');
     setLoading(true);
@@ -97,8 +109,12 @@ function SessionForm() {
         });
       }
       navigate('/sessions');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to save session');
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        setError(err.response?.data?.message || 'Failed to save session');
+      } else {
+        setError('Failed to save session');
+      }
     } finally {
       setLoading(false);
     }
@@ -112,11 +128,11 @@ function SessionForm() {
             {isEditMode ? 'Edit Session' : 'Create New Session'}
           </h1>
 
-          {error ? (
+          {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
               {error}
             </div>
-          ) : null}
+          )}
 
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
@@ -156,13 +172,13 @@ function SessionForm() {
               <select
                 id="session-teacher"
                 name="teacherId"
-                value={formData.teacherId}
+                value={formData.teacherId || ''}
                 onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-indigo-500"
                 required
               >
                 <option value="">Select a teacher</option>
-                {teachers.map((teacher: any) => (
+                {teachers.map((teacher: Teacher) => (
                   <option key={teacher.id} value={teacher.id}>
                     {teacher.firstName} {teacher.lastName}
                   </option>
