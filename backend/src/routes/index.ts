@@ -27,14 +27,12 @@ router.post('/api/session/:id/participate/:userId', authMiddleware, sessionContr
 router.delete('/api/session/:id/participate/:userId', authMiddleware, sessionController.unparticipate);
 
 // Teacher routes (protected)
-router.get('/api/teacher', authMiddleware, (req, res) => teacherController.getAll(req, res));
-router.get('/api/teacher/:id', authMiddleware, (req, res) => teacherController.getById(req, res));
+router.get('/api/teacher', authMiddleware, teacherController.getAll);
+router.get('/api/teacher/:id', authMiddleware, teacherController.getById);
 
 // User routes (protected)
-router.get('/api/user/:id', authMiddleware, (req, res) => userController.getById(req, res));
-router.post('/api/user/promote-admin', authMiddleware, (req, res) =>
-  userController.promoteSelfToAdmin(req, res),
-);
-router.delete('/api/user/:id', authMiddleware, (req, res) => userController.delete(req, res));
+router.get('/api/user/:id', authMiddleware, userController.getById);
+router.post('/api/user/promote-admin', authMiddleware, userController.promoteSelfToAdmin);
+router.delete('/api/user/:id', authMiddleware, userController.delete);
 
 export default router;
