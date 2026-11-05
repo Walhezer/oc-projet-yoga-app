@@ -1,11 +1,9 @@
+// backend/src/services/session.service.ts
 import { PrismaClient } from '@prisma/client';
+import { CreateSessionSchema, UpdateSessionSchema } from '../dto/session.dto';
 
 const prisma = new PrismaClient();
 
-/**
- * Custom error class for handling HTTP codes.
- * The global errorHandler middleware will recognize it based on statusCode.
- */
 export class HttpError extends Error {
   constructor(public statusCode: number, message: string) {
     super(message);
@@ -72,25 +70,20 @@ export class SessionService {
   }
 
   async create(data: any, userId: number) {
-    const { name, date, description, teacherId } = data;
-
-    if (!name) throw new HttpError(400, 'Name is required');
-    if (!date) throw new HttpError(400, 'Date is required');
-    if (!description) throw new HttpError(400, 'Description is required');
-    if (!teacherId) throw new HttpError(400, 'Teacher ID is required');
+    const validatedData = CreateSessionSchema.parse(data);
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user || !user.admin) throw new HttpError(403, 'Admin access required');
 
-    const teacher = await prisma.teacher.findUnique({ where: { id: teacherId } });
+    const teacher = await prisma.teacher.findUnique({ where: { id: validatedData.teacherId } });
     if (!teacher) throw new HttpError(404, 'Teacher not found');
 
     const session = await prisma.session.create({
       data: {
-        name,
-        date: new Date(date),
-        description,
-        teacherId,
+        name: validatedData.name,
+        date: new Date(validatedData.date),
+        description: validatedData.description,
+        teacherId: validatedData.teacherId,
       },
       include: {
         teacher: true,
@@ -119,7 +112,7 @@ export class SessionService {
     const sessionId = parseInt(id);
     if (isNaN(sessionId)) throw new HttpError(400, 'Invalid session ID');
 
-    const { name, date, description, teacherId } = data;
+    const validatedData = UpdateSessionSchema.parse(data);
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user || !user.admin) throw new HttpError(403, 'Admin access required');
@@ -128,13 +121,14 @@ export class SessionService {
     if (!existingSession) throw new HttpError(404, 'Session not found');
 
     const updateData: any = {};
-    if (name) updateData.name = name;
-    if (date) updateData.date = new Date(date);
-    if (description) updateData.description = description;
-    if (teacherId) {
-      const teacher = await prisma.teacher.findUnique({ where: { id: teacherId } });
+    if (validatedData.name) updateData.name = validatedData.name;
+    if (validatedData.date) updateData.date = new Date(validatedData.date);
+    if (validatedData.description) updateData.description = validatedData.description;
+    
+    if (validatedData.teacherId) {
+      const teacher = await prisma.teacher.findUnique({ where: { id: validatedData.teacherId } });
       if (!teacher) throw new HttpError(404, 'Teacher not found');
-      updateData.teacherId = teacherId;
+      updateData.teacherId = validatedData.teacherId;
     }
 
     const session = await prisma.session.update({
