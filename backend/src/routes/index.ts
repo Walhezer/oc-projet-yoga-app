@@ -14,8 +14,8 @@ const teacherController = new TeacherController();
 const userController = new UserController();
 
 // Auth routes (public)
-router.post('/api/auth/login', (req, res) => authController.login(req, res));
-router.post('/api/auth/register', (req, res) => authController.register(req, res));
+router.post('/api/auth/login', authController.login);
+router.post('/api/auth/register', authController.register);
 
 // Session routes (protected) - Passage direct par référence
 router.get('/api/session', authMiddleware, sessionController.getAll);
