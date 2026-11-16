@@ -1,4 +1,3 @@
-// backend/src/services/session.service.ts
 import { PrismaClient } from '@prisma/client';
 import { CreateSessionSchema, UpdateSessionSchema } from '../dto/session.dto';
 
