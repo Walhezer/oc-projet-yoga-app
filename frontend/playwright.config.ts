@@ -18,9 +18,12 @@ export default defineConfig({
         outputFile: './coverage-e2e/report.html',
         coverage: {
           entryFilter: (entry: { url: string }) =>
-            entry.url.includes('/src/') && !entry.url.includes('node_modules'),
+            entry.url.includes('/src/') &&
+            !entry.url.includes('node_modules') &&
+            !entry.url.includes('.css'),
           sourceFilter: (sourcePath: string) =>
-            sourcePath.includes('src/') && !sourcePath.includes('node_modules'),
+            !sourcePath.includes('node_modules') &&
+            !sourcePath.includes('.css'),
           reports: ['v8', 'console-summary'],
         },
       },

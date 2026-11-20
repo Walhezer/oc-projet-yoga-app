@@ -1,6 +1,11 @@
 import { test, expect } from './fixtures';
 
 test.describe('Authentication E2E Flows', () => {
+  test('should redirect unauthenticated user to login', async ({ page }) => {
+    await page.goto('/sessions');
+    await expect(page).toHaveURL('/login');
+  });
+
   test('should display error on invalid login credentials', async ({ page }) => {
     await page.route('**/api/auth/login', async (route) => {
       await route.fulfill({
@@ -95,5 +100,25 @@ test.describe('Authentication E2E Flows', () => {
     await page.getByRole('button', { name: /register|sign up/i }).click();
 
     await expect(page).toHaveURL('/sessions');
+  });
+
+  test('should display error on failed registration', async ({ page }) => {
+    await page.route('**/api/auth/register', async (route) => {
+      await route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({ message: 'Email already in use' }),
+      });
+    });
+
+    await page.goto('/register');
+
+    await page.getByLabel(/first name/i).fill('John');
+    await page.getByLabel(/last name/i).fill('Doe');
+    await page.getByLabel(/email/i).fill('existing@studio.com');
+    await page.getByLabel(/password/i).fill('password123');
+    await page.getByRole('button', { name: /register|sign up/i }).click();
+
+    await expect(page.getByText('Email already in use')).toBeVisible();
   });
 });
