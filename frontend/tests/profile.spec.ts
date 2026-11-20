@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 test.describe('Profile & Navbar E2E Flows', () => {
     test('should display user profile info and allow account deletion', async ({ page }) => {

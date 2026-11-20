@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 test.describe('Authentication E2E Flows', () => {
   test('should display error on invalid login credentials', async ({ page }) => {

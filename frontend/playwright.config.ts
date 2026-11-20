@@ -8,7 +8,24 @@ export default defineConfig({
   forbidOnly: isCI,
   retries: isCI ? 2 : 0,
   workers: isCI ? 1 : undefined,
-  reporter: 'html',
+  reporter: [
+    ['list'],
+    ['html'],
+    [
+      'monocart-reporter',
+      {
+        name: 'Playwright E2E Coverage Report',
+        outputFile: './coverage-e2e/report.html',
+        coverage: {
+          entryFilter: (entry: { url: string }) =>
+            entry.url.includes('/src/') && !entry.url.includes('node_modules'),
+          sourceFilter: (sourcePath: string) =>
+            sourcePath.includes('src/') && !sourcePath.includes('node_modules'),
+          reports: ['v8', 'console-summary'],
+        },
+      },
+    ],
+  ],
   use: {
     baseURL: 'http://localhost:3000',
     trace: 'on-first-retry',
