@@ -253,6 +253,7 @@ npx monocart show-report coverage-e2e/report.html
 | :--- | :---: | :---: | :---: | :---: | :---: |
 | **Backend (Vitest)** | **98.90%** | **95.90%** | **97.67%** | **98.68%** | Passed |
 | **Frontend (Vitest)** | **98.47%** | **98.26%** | **96.07%** | **98.46%** | Passed |
+| **E2E (Playwright / V8)** | **84.55%** | **80.00%** | **87.72%** | **90.79%** | Passed |
 
 - **Backend integration test ratio:** 33.3% (28 integration tests out of 84 total tests, above the 30% target).
 
