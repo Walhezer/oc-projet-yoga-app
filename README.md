@@ -22,9 +22,14 @@ A full-stack web application for managing yoga studio operations, including sess
 - React Router 6.x
 - Axios
 
+### Testing & Quality
+- **Backend**: Vitest (unit & integration tests), native `fetch`, v8 coverage
+- **Frontend**: Vitest, React Testing Library, v8 coverage
+- **End-to-End (E2E)**: Playwright, `monocart-reporter` (Chromium V8 coverage)
+
 ### Infrastructure
 - Docker + Docker Compose
-- PostgreSQL container
+- PostgreSQL 16 container
 
 ## Features
 
@@ -52,14 +57,15 @@ A full-stack web application for managing yoga studio operations, including sess
 
 - Node.js 22 LTS or higher
 - Docker and Docker Compose
-- npm or yarn
+- npm
 
 ## Installation
 
 ### 1. Clone the repository
 
 ```bash
-cd p4-dfsjs-starter
+git clone https://github.com/Walhezer/oc-projet-yoga-app.git
+cd oc-projet-yoga-app
 ```
 
 ### 2. Install Backend Dependencies
@@ -76,6 +82,12 @@ cd ../frontend
 npm install
 ```
 
+If you are running Playwright E2E tests for the first time, install the Playwright browsers:
+
+```bash
+npx playwright install
+```
+
 ### 4. Set up Environment Variables
 
 Create a `.env` file in the `backend` directory:
@@ -85,7 +97,7 @@ cd ../backend
 cp .env.example .env
 ```
 
-The default configuration should work with Docker Compose:
+Default configuration matching `docker-compose.yml`:
 
 ```env
 DATABASE_URL="postgresql://yogauser:yogapass@localhost:5432/yogastudio"
@@ -102,22 +114,18 @@ From the project root:
 docker-compose up -d
 ```
 
-This will start a PostgreSQL container on port 5432.
+This starts a `postgres:16-alpine` container (`yoga-studio-db`) on port `5432`.
 
-### 6. Run Database Migrations
+### 6. Run Database Migrations & Seed
 
 ```bash
 cd backend
+npm run prisma:generate
 npm run prisma:migrate
-```
-
-### 7. Seed the Database
-
-```bash
 npm run prisma:seed
 ```
 
-This will create:
+The seed script creates:
 - 1 admin user: `yoga@studio.com` / `test!1234`
 - 1 regular user: `user@test.com` / `test!1234`
 - 3 teachers
@@ -132,7 +140,7 @@ cd backend
 npm run dev
 ```
 
-The API will run on `http://localhost:8080`
+The API runs on `http://localhost:8080`.
 
 ### Start the Frontend (Terminal 2)
 
@@ -141,7 +149,7 @@ cd frontend
 npm run dev
 ```
 
-The frontend will run on `http://localhost:3000`
+The frontend runs on `http://localhost:3000`.
 
 ## Default Credentials
 
@@ -153,7 +161,105 @@ The frontend will run on `http://localhost:3000`
 - Email: `user@test.com`
 - Password: `test!1234`
 
+## Testing
+
+The application is covered by unit tests, integration tests, and end-to-end (E2E) tests.
+
+### 1. Backend Tests (Unit & Integration)
+
+> **Prerequisites:** Make sure the PostgreSQL Docker container is running (`docker-compose up -d`).  
+> Integration tests run sequentially (`fileParallelism: false` in `vitest.config.mts`) and reset database tables between test cases. If you need the default seed data afterward for manual or E2E testing, re-run `npm run prisma:seed`.
+
+```bash
+cd backend
+
+# Run tests in watch mode
+npm test
+
+# Run all unit and integration tests once
+npm run test:run
+```
+
+### 2. Frontend Tests (Unit & Integration)
+
+```bash
+cd frontend
+
+# Run tests in watch mode
+npm test
+
+# Run all tests once with coverage
+npm run test:coverage
+```
+
+### 3. End-to-End (E2E) Tests
+
+> **Prerequisites:** Ensure PostgreSQL is running and seeded (`npm run prisma:seed`), and that the backend server (`http://localhost:8080`) is started. Playwright automatically starts or reuses the Vite frontend dev server (`http://localhost:3000`).
+
+```bash
+cd frontend
+
+# Run Playwright E2E tests (headless) and generate coverage report
+npm run test:e2e
+
+# Run Playwright E2E tests with interactive UI
+npm run test:e2e:ui
+
+# Open the standard Playwright HTML execution report
+npx playwright show-report
+```
+
+## Code Coverage Reports
+
+Both backend and frontend exceed the **80% minimum coverage threshold** across all four indicators (Statements, Branches, Functions, Lines).
+
+### Generating Coverage Reports
+
+**Backend (Vitest):**
+
+```bash
+cd backend
+npm run test:coverage
+```
+
+The HTML report is generated in `backend/coverage/index.html`.
+
+**Frontend Unit & Integration (Vitest):**
+
+```bash
+cd frontend
+npm run test:coverage
+```
+
+The HTML report is generated in `frontend/coverage/index.html`.
+
+**Frontend E2E (Playwright + Monocart V8):**
+
+```bash
+cd frontend
+npm run test:e2e
+```
+
+Playwright collects V8 code coverage via `tests/fixtures.ts` and `monocart-reporter`.  
+The HTML coverage report is generated in `frontend/coverage-e2e/coverage/index.html`, and the full Monocart report can be opened with:
+
+```bash
+npx monocart show-report coverage-e2e/report.html
+```
+
+### Coverage Summary
+
+| Scope | Statements | Branches | Functions | Lines | Threshold (≥ 80%) |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **Backend (Vitest)** | **98.90%** | **95.90%** | **97.67%** | **98.68%** | Passed |
+| **Frontend (Vitest)** | **98.47%** | **98.26%** | **96.07%** | **98.46%** | Passed |
+
+- **Backend integration test ratio:** 33.3% (28 integration tests out of 84 total tests, above the 30% target).
+
 ## API Endpoints
+
+### Health
+- `GET /api/health` - Check API status (public)
 
 ### Authentication
 - `POST /api/auth/register` - Register a new user
@@ -174,6 +280,7 @@ The frontend will run on `http://localhost:3000`
 
 ### Users
 - `GET /api/user/:id` - Get user by ID (protected)
+- `POST /api/user/promote-admin` - Promote current user to admin (development only, protected)
 - `DELETE /api/user/:id` - Delete user account (protected)
 
 ## Database Schema
@@ -201,14 +308,14 @@ model Teacher {
 }
 
 model Session {
-  id          Int       @id @default(autoincrement())
-  name        String
-  date        DateTime
-  description String
-  teacherId   Int
-  teacher     Teacher   @relation(fields: [teacherId], references: [id])
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id           Int       @id @default(autoincrement())
+  name         String
+  date         DateTime
+  description  String
+  teacherId    Int
+  teacher      Teacher   @relation(fields: [teacherId], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
   participants SessionParticipation[]
 }
 
@@ -224,67 +331,67 @@ model SessionParticipation {
 
 ## Development Scripts
 
-### Backend
+### Backend (`backend/`)
 
 ```bash
-npm run dev          # Start development server with nodemon
-npm run build        # Build TypeScript to JavaScript
-npm start            # Start production server
+npm run dev              # Start development server with nodemon
+npm run build            # Build TypeScript to JavaScript
+npm start                # Start production server
 npm run prisma:generate  # Generate Prisma client
 npm run prisma:migrate   # Run database migrations
 npm run prisma:seed      # Seed the database
 npm run prisma:studio    # Open Prisma Studio
+npm test                 # Run Vitest in watch mode
+npm run test:run         # Run all backend tests once
+npm run test:coverage    # Run backend tests and generate coverage report
 ```
 
-### Frontend
+### Frontend (`frontend/`)
 
 ```bash
-npm run dev          # Start Vite development server
-npm run build        # Build for production
-npm run preview      # Preview production build
+npm run dev              # Start Vite development server
+npm run build            # Build for production
+npm run preview          # Preview production build
+npm test                 # Run Vitest in watch mode
+npm run test:coverage    # Run frontend tests and generate coverage report
+npm run test:e2e         # Run Playwright E2E tests & generate E2E coverage report
+npm run test:e2e:ui      # Run Playwright E2E tests in UI mode
 ```
 
 ## Project Structure
 
 ```
-p4-dfsjs-starter/
+oc-projet-yoga-app/
 ├── backend/
 │   ├── src/
-│   │   ├── controllers/      # Request handlers
-│   │   ├── middleware/       # Auth middleware
+│   │   ├── controllers/      # Request handlers & integration tests
+│   │   ├── services/         # Business logic & unit tests
+│   │   ├── middleware/       # Auth & error handling middlewares
 │   │   ├── dto/              # Zod validation schemas
-│   │   ├── utils/            # JWT utilities
+│   │   ├── utils/            # JWT utilities & unit tests
 │   │   ├── routes/           # API routes
-│   │   └── app.ts            # Express app setup
+│   │   └── app.ts            # Express app setup & integration tests
 │   ├── prisma/
 │   │   ├── schema.prisma     # Database schema
 │   │   └── seed.ts           # Database seeding
+│   ├── vitest.config.mts
 │   ├── package.json
-│   ├── tsconfig.json
 │   └── .env
 ├── frontend/
 │   ├── src/
-│   │   ├── pages/            # React page components
-│   │   ├── components/       # Reusable components
-│   │   ├── services/         # API services
+│   │   ├── pages/            # React page components & integration tests
+│   │   ├── components/       # Reusable components & unit tests
+│   │   ├── services/         # API services & unit tests
 │   │   ├── types/            # TypeScript types
 │   │   ├── App.tsx
 │   │   └── main.tsx
-│   ├── package.json
+│   ├── tests/                # Playwright E2E tests & V8 coverage fixtures
+│   ├── playwright.config.ts
 │   ├── vite.config.ts
-│   └── tailwind.config.js
+│   └── package.json
 ├── docker-compose.yml
 └── README.md
 ```
-
-## Testing
-
-The project supports comprehensive testing with the following frameworks:
-- **Unit tests**: For testing individual components and utilities
-- **Integration tests**: For testing API endpoints
-- **End-to-end tests**: For testing critical user flows
-
-Run tests with the appropriate npm scripts in each directory.
 
 ## Troubleshooting
 
@@ -300,30 +407,14 @@ docker-compose restart postgres
 docker-compose logs postgres
 ```
 
-### Port already in use
-```bash
-# Check what's using port 8080
-lsof -i :8080
-
-# Check what's using port 3000
-lsof -i :3000
-
-# Kill the process if needed
-kill -9 <PID>
-```
-
 ### Prisma issues
 ```bash
 # Reset database (WARNING: deletes all data)
 npx prisma migrate reset
 
 # Regenerate Prisma client
-npx prisma generate
+npm run prisma:generate
 ```
-
-## Contributing
-
-Please follow the existing code style and ensure all tests pass before submitting changes.
 
 ## License
 
